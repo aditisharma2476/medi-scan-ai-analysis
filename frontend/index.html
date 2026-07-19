@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#090d13" id="meta-theme-color" />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("mediscan-theme");
+          var theme =
+            stored ||
+            (window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: light)").matches
+              ? "light"
+              : "dark");
+          if (theme === "light")
+            document.documentElement.setAttribute("data-theme", "light");
+        } catch (e) {}
+      })();
+    </script>
+    <meta
+      name="description"
+      content="AI-Powered Skin & Nail Disease Detection — Upload or capture an image for instant AI analysis."
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="MediScan AI" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <title>MediScan AI — Skin & Nail Disease Detector</title>
+
+    <!-- Google Fonts: Inter (body) + IBM Plex Mono (technical/readout accents) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome 6 (free) -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body>
+    <!-- ═══ PWA Install Banner ═══ -->
+    <div id="install-banner" class="install-banner hidden">
+      <div class="install-banner-content">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        <span>Install <strong>MediScan AI</strong> for offline access</span>
+        <button id="install-btn" class="btn btn-sm">Install</button>
+        <button id="dismiss-install" class="btn-icon" aria-label="Dismiss">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══ Navigation Tabs ═══ -->
+    <nav class="nav-tabs" id="nav-tabs">
+      <button id="nav-skin" class="nav-tab active" data-mode="skin">
+        <i class="fa-solid fa-hand"></i>
+        <span>Skin</span>
+      </button>
+      <button id="nav-nail" class="nav-tab" data-mode="nail">
+        <i class="fa-solid fa-hand-fist"></i>
+        <span>Nail</span>
+      </button>
+      <button
+        id="theme-toggle"
+        class="theme-toggle"
+        aria-label="Switch between light and dark theme"
+        title="Switch theme"
+      >
+        <i class="fa-solid fa-sun icon-sun"></i>
+        <i class="fa-solid fa-moon icon-moon"></i>
+      </button>
+    </nav>
+
+    <!-- ═══ Main Container ═══ -->
+    <main class="container">
+      <!-- Header -->
+      <header class="header">
+        <div class="logo">
+          <i class="fa-solid fa-microscope"></i>
+          <h1>MediScan <span>AI</span></h1>
+        </div>
+        <p class="subtitle" id="page-subtitle">
+          AI-Powered Skin Disease Detection
+        </p>
+      </header>
+
+      <!-- Upload Section -->
+      <section class="upload-section" id="upload-section">
+        <div class="upload-zone" id="upload-zone">
+          <div class="upload-zone-content" id="upload-zone-content">
+            <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+            <h3 id="upload-heading">Upload a Skin Image</h3>
+            <p>Drag & drop or click to browse</p>
+            <p class="upload-hint">Supports JPG, PNG, WEBP — Max 10 MB</p>
+          </div>
+          <input type="file" id="image-input" accept="image/*" hidden />
+        </div>
+
+        <div class="divider">
+          <span>or</span>
+        </div>
+
+        <!-- Camera Capture -->
+        <div class="camera-section">
+          <button id="camera-btn" class="btn btn-camera">
+            <i class="fa-solid fa-camera"></i> Capture with Camera
+          </button>
+          <video
+            id="camera-preview"
+            class="camera-preview hidden"
+            autoplay
+            playsinline
+          ></video>
+          <div class="camera-actions hidden" id="camera-actions">
+            <button id="capture-btn" class="btn btn-primary">
+              <i class="fa-solid fa-camera"></i> Capture
+            </button>
+            <button id="close-camera-btn" class="btn btn-secondary">
+              <i class="fa-solid fa-xmark"></i> Close
+            </button>
+          </div>
+        </div>
+
+        <!-- Preview & Analyze -->
+        <div id="preview-section" class="preview-section hidden">
+          <h3>Image Preview</h3>
+          <div class="preview-wrapper">
+            <img id="preview-image" alt="Preview" />
+            <button
+              id="remove-image-btn"
+              class="btn-icon remove-btn"
+              aria-label="Remove image"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <button id="analyze-btn" class="btn btn-primary btn-analyze">
+            <i class="fa-solid fa-flask"></i> Analyze Condition
+          </button>
+        </div>
+      </section>
+
+      <!-- Loading -->
+      <section id="loading-section" class="loading-section hidden">
+        <div class="spinner"></div>
+        <p class="loading-text" id="loading-text">Analyzing your skin image</p>
+        <p class="loading-sub">This usually takes a few seconds</p>
+      </section>
+
+      <!-- Results Dashboard -->
+      <section id="results-section" class="results-section hidden">
+        <div class="results-header">
+          <h2><i class="fa-solid fa-clipboard-check"></i> Analysis Results</h2>
+          <button id="new-analysis-btn" class="btn btn-secondary btn-sm">
+            <i class="fa-solid fa-arrow-left"></i> New Analysis
+          </button>
+        </div>
+
+        <!-- Disease Name Hero with Image -->
+        <div class="result-hero">
+          <div class="hero-image-wrapper">
+            <img id="result-image" class="result-image" alt="Analyzed image" />
+          </div>
+          <div class="hero-badge">
+            <i class="fa-solid fa-microscope"></i>
+            <span>Detected Condition</span>
+          </div>
+          <h3 id="disease-name" class="disease-name">—</h3>
+        </div>
+
+        <!-- Metrics Grid (4 cards) -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div
+              class="metric-icon"
+              style="background: rgba(45, 216, 196, 0.15)"
+            >
+              <i class="fa-solid fa-chart-line" style="color: #2dd8c4"></i>
+            </div>
+            <div class="metric-info">
+              <span class="metric-label">Probability</span>
+              <span id="probability-value" class="metric-number">0%</span>
+            </div>
+            <div class="metric-track">
+              <div
+                class="metric-fill"
+                id="probability-bar"
+                style="width: 0%; background: #2dd8c4"
+              ></div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div
+              class="metric-icon"
+              style="background: rgba(52, 211, 153, 0.15)"
+            >
+              <i class="fa-solid fa-shield-halved" style="color: #34d399"></i>
+            </div>
+            <div class="metric-info">
+              <span class="metric-label">Confidence</span>
+              <span id="confidence-value" class="metric-number">0%</span>
+            </div>
+            <div class="metric-track">
+              <div
+                class="metric-fill"
+                id="confidence-bar"
+                style="width: 0%; background: #34d399"
+              ></div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div
+              class="metric-icon"
+              style="background: rgba(240, 180, 41, 0.15)"
+            >
+              <i class="fa-solid fa-bullseye" style="color: #f0b429"></i>
+            </div>
+            <div class="metric-info">
+              <span class="metric-label">Accuracy</span>
+              <span id="accuracy-value" class="metric-number">0%</span>
+            </div>
+            <div class="metric-track">
+              <div
+                class="metric-fill"
+                id="accuracy-bar"
+                style="width: 0%; background: #f0b429"
+              ></div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div
+              class="metric-icon"
+              style="background: rgba(251, 99, 96, 0.15)"
+            >
+              <i
+                class="fa-solid fa-triangle-exclamation"
+                style="color: #fb6360"
+              ></i>
+            </div>
+            <div class="metric-info">
+              <span class="metric-label">Risk Level</span>
+              <span id="risk-value" class="metric-number">0%</span>
+            </div>
+            <div class="metric-track">
+              <div
+                class="metric-fill"
+                id="risk-bar"
+                style="width: 0%; background: #fb6360"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Severity & Contagious Row -->
+        <div class="status-row">
+          <div class="status-chip" id="severity-chip">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Severity: <strong id="severity">—</strong></span>
+          </div>
+          <div class="status-chip" id="contagious-chip">
+            <i class="fa-solid fa-biohazard"></i>
+            <span>Contagious: <strong id="contagious">—</strong></span>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="detail-card">
+          <div class="detail-header">
+            <i class="fa-solid fa-align-left"></i>
+            <span>Description</span>
+          </div>
+          <p id="description" class="detail-text">—</p>
+        </div>
+
+        <!-- Symptoms, Causes, Treatments in a clean layout -->
+        <div class="detail-card">
+          <div class="detail-header">
+            <i class="fa-solid fa-list"></i>
+            <span>Common Symptoms</span>
+          </div>
+          <ul id="symptoms-list" class="detail-list"></ul>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-header">
+            <i class="fa-solid fa-search"></i>
+            <span>Possible Causes</span>
+          </div>
+          <ul id="causes-list" class="detail-list"></ul>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-header">
+            <i class="fa-solid fa-prescription-bottle"></i>
+            <span>Recommended Treatments</span>
+          </div>
+          <ul id="treatments-list" class="detail-list"></ul>
+        </div>
+
+        <!-- Consult Doctor Alert -->
+        <div id="consult-alert" class="consult-alert hidden">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div>
+            <strong>Consult a Dermatologist</strong>
+            <p>
+              This analysis is AI-generated and not a medical diagnosis. Please
+              consult a qualified healthcare professional.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>
+          <i class="fa-solid fa-shield-halved"></i> AI-generated analysis for
+          informational purposes only. Always consult a doctor.
+        </p>
+      </footer>
+    </main>
+
+    <!-- ═══ Scripts ═══ -->
+    <script src="js/theme.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
