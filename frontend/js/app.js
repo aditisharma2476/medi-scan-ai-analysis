@@ -96,7 +96,7 @@
 
   // ── API Base URL (Production)───────────────────────────────────────────────
   const API_BASE = window.location.origin.includes("localhost")
-    ? "https://medi-scan-ai-backend.onrender.com"
+    ? "https://api-medi-scan-ai-analysis.onrender.com"
     : window.location.origin;
 
   // ── Navigation ─────────────────────────────────────────────────
