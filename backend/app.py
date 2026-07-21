@@ -85,7 +85,7 @@ You are a board-certified dermatology AI assistant specializing in nail disorder
 
 The JSON must follow this exact schema:
 {
-  "disease_name": "string — the most likely nail condition (e.g., 'Onychomycosis (Fungal Nail Infection)', 'Ingrown Toenail', 'Nail Psoriasis', 'Paronychia', 'Leukonychia', 'Beau\'s Lines', 'Onycholysis', 'Clubbing', 'Koilonychia (Spoon Nails)', 'Melanonychia', 'Subungual Hematoma', 'Yellow Nail Syndrome', 'Normal Nail — No Disease Detected')",
+  "disease_name": "string — the most likely nail condition (e.g., 'Onychomycosis (Fungal Nail Infection)', 'Ingrown Toenail', 'Nail Psoriasis', 'Paronychia', 'Leukonychia', 'Beau Lines', 'Onycholysis', 'Clubbing', 'Koilonychia (Spoon Nails)', 'Melanonychia', 'Subungual Hematoma', 'Yellow Nail Syndrome', 'Normal Nail — No Disease Detected')",
   "probability": "integer — the likelihood that this specific condition is present (0–100)",
   "confidence": "integer — your overall confidence in the analysis/assessment (0–100)",
   "description": "string — a brief 1-2 sentence description of the condition",
@@ -165,7 +165,7 @@ def _analyze_image(prompt: str):
                 }
             ],
             temperature=0.1,
-            max_tokens=2048,
+            max_tokens=4096,
         )
 
         raw = completion.choices[0].message.content.strip()
@@ -174,40 +174,42 @@ def _analyze_image(prompt: str):
         # ── Parse JSON from response ──────────────────────────────
         import re
 
-        # Remove <think> reasoning blocks (used by Qwen models)
-        # First try to remove properly closed <think>...</think> blocks
-        cleaned = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
-        # If nothing remains, the think block might not be closed - strip from <think> onward
-        if not cleaned:
-            think_idx = raw.find('<think>')
-            if think_idx != -1:
-                cleaned = raw[:think_idx].strip()
-            else:
-                cleaned = raw
-        raw = cleaned
+        # Strategy: The Qwen model outputs <think> reasoning blocks.
+        # The JSON may be embedded inside or after the think block.
+        # We directly find the outermost JSON object in the raw response.
 
-        # Remove markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.strip("`")
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
-
-        # Try to extract JSON object from the response (find first { and last })
+        # Find the first '{' and last '}' in the entire response
         json_start = raw.find('{')
         json_end = raw.rfind('}')
+
+        result = None
         if json_start != -1 and json_end != -1 and json_end > json_start:
-            raw = raw[json_start:json_end + 1]
+            json_str = raw[json_start:json_end + 1]
+            # Try to parse the JSON directly first
+            try:
+                result = json.loads(json_str)
+            except json.JSONDecodeError:
+                # JSON might be truncated - try to find the last valid JSON
+                # by progressively trimming from the end
+                for trim_end in range(len(json_str), json_start, -1):
+                    candidate = json_str[:trim_end]
+                    # Try to close any open brackets/braces
+                    open_braces = candidate.count('{') - candidate.count('}')
+                    open_brackets = candidate.count('[') - candidate.count(']')
+                    if open_braces > 0:
+                        candidate += '}' * open_braces
+                    if open_brackets > 0:
+                        candidate += ']' * open_brackets
+                    # Remove trailing comma before closing
+                    candidate = re.sub(r',\s*([}\]])', r'\1', candidate)
+                    try:
+                        result = json.loads(candidate)
+                        break
+                    except json.JSONDecodeError:
+                        continue
 
-        # If still no JSON found, try the original response directly
-        if not raw.strip() or raw.strip() == '{}':
-            original = completion.choices[0].message.content
-            json_start = original.find('{')
-            json_end = original.rfind('}')
-            if json_start != -1 and json_end != -1 and json_end > json_start:
-                raw = original[json_start:json_end + 1]
-
-        result = json.loads(raw)
+        if result is None:
+            raise json.JSONDecodeError("Could not extract valid JSON from response", raw, 0)
 
         # Validate required fields
         required = [
