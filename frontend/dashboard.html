@@ -53,12 +53,6 @@
     <main class="container">
       <!-- Dashboard Heading -->
 
-      <section class="dashboard-heading">
-        <h2>Dashboard</h2>
-
-        <p>Overview of all analyses performed through MediScan AI</p>
-      </section>
-
       <!-- ================= STATISTICS ================= -->
 
       <section class="stats-container">
@@ -73,6 +67,8 @@
             <h3>Total Analyses</h3>
 
             <h1 id="totalAnalysis">0</h1>
+
+            <p>Total records analysed</p>
           </div>
         </div>
 
@@ -82,7 +78,6 @@
           <div class="card-icon blue">
             <i class="fa-solid fa-hand-sparkles"></i>
           </div>
-
           <div class="card-content">
             <h3>Skin Analyses</h3>
 
@@ -123,7 +118,11 @@
 
       <section class="history-section">
         <div class="history-header">
-          <h2>Recent Analyses</h2>
+          <div class="section-title">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+
+            <h2>Recent Analyses</h2>
+          </div>
         </div>
 
         <div class="table-container">

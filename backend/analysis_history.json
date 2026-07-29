@@ -38,5 +38,13 @@
         "probability": 85,
         "confidence": 80,
         "severity": "Moderate"
+    },
+    {
+        "date": "29-07-2026 19:17:03",
+        "type": "Nail",
+        "disease": "Onychomycosis (Fungal Nail Infection)",
+        "probability": 90,
+        "confidence": 85,
+        "severity": "Severe"
     }
 ]

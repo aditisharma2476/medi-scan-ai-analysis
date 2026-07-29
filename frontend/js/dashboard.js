@@ -20,7 +20,10 @@ currentDate.textContent = today.toLocaleDateString("en-IN", {
 
 async function loadDashboardStats() {
   try {
-    const response = await fetch("http://127.0.0.1:5000/dashboard-stats");
+    // const response = await fetch("http://127.0.0.1:5000/dashboard-stats");
+    const response = await fetch(
+      "https://api-medi-scan-ai-analysis.onrender.com/dashboard-stats",
+    );
 
     const data = await response.json();
 
@@ -45,15 +48,34 @@ async function loadDashboardStats() {
       .reverse()
       .forEach((item) => {
         table.innerHTML += `
-          <tr>
-            <td>${item.date}</td>
-            <td>${item.type}</td>
-            <td>${item.disease}</td>
-            <td>${item.probability}%</td>
-            <td>${item.confidence}%</td>
-            <td>${item.severity}</td>
-          </tr>
-        `;
+      <tr>
+
+        <td>${item.date}</td>
+
+        <td>
+          <span class="badge ${item.type.toLowerCase()}">
+            ${item.type}
+          </span>
+        </td>
+
+        <td>${item.disease}</td>
+
+        <td class="percentage">
+          ${item.probability}%
+        </td>
+
+        <td class="percentage">
+          ${item.confidence}%
+        </td>
+
+        <td>
+          <span class="badge ${item.severity.toLowerCase()}">
+            ${item.severity}
+          </span>
+        </td>
+
+      </tr>
+    `;
       });
   } catch (error) {
     console.error("Error loading dashboard statistics:", error);

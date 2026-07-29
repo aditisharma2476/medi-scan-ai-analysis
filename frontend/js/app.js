@@ -90,12 +90,12 @@
   let deferredPrompt = null;
 
   // ── API Base URL (Local)───────────────────────────────────────────────
-  const API_BASE = window.location.origin.includes("localhost")
-    ? "http://localhost:5000"
-    : window.location.origin;
+  // const API_BASE = window.location.origin.includes("localhost")
+  //   ? "http://localhost:5000"
+  //   : window.location.origin;
 
   // // ── API Base URL (Production)───────────────────────────────────────────────
-  // const API_BASE = "https://api-medi-scan-ai-analysis.onrender.com";
+  const API_BASE = "https://api-medi-scan-ai-analysis.onrender.com";
 
   // ── Navigation ─────────────────────────────────────────────────
   function switchMode(mode) {
