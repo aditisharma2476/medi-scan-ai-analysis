@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediScan AI Dashboard</title>
+
+    <link rel="stylesheet" href="css/dashboard.css" />
+
+    <!-- Google Font -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
+    />
+  </head>
+
+  <body>
+    <!-- ================= HEADER ================= -->
+
+    <header class="header">
+      <div class="logo-section">
+        <div class="logo">
+          <i class="fa-solid fa-shield-heart"></i>
+        </div>
+
+        <div>
+          <h1>MediScan AI</h1>
+          <p>Analytics Dashboard</p>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="date">
+          <i class="fa-regular fa-calendar"></i>
+          <span id="currentDate">28 July 2026</span>
+        </div>
+
+        <div class="admin">
+          <i class="fa-solid fa-user"></i>
+          <span>Admin</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ================= MAIN ================= -->
+
+    <main class="container">
+      <!-- Dashboard Heading -->
+
+      <section class="dashboard-heading">
+        <h2>Dashboard</h2>
+
+        <p>Overview of all analyses performed through MediScan AI</p>
+      </section>
+
+      <!-- ================= STATISTICS ================= -->
+
+      <section class="stats-container">
+        <!-- Total -->
+
+        <div class="card">
+          <div class="card-icon purple">
+            <i class="fa-solid fa-chart-column"></i>
+          </div>
+
+          <div class="card-content">
+            <h3>Total Analyses</h3>
+
+            <h1 id="totalAnalysis">0</h1>
+          </div>
+        </div>
+
+        <!-- Skin -->
+
+        <div class="card">
+          <div class="card-icon blue">
+            <i class="fa-solid fa-hand-sparkles"></i>
+          </div>
+
+          <div class="card-content">
+            <h3>Skin Analyses</h3>
+
+            <h1 id="skinAnalysis">0</h1>
+          </div>
+        </div>
+
+        <!-- Nail -->
+
+        <div class="card">
+          <div class="card-icon cyan">
+            <i class="fa-solid fa-hand"></i>
+          </div>
+
+          <div class="card-content">
+            <h3>Nail Analyses</h3>
+
+            <h1 id="nailAnalysis">0</h1>
+          </div>
+        </div>
+
+        <!-- Today -->
+
+        <div class="card">
+          <div class="card-icon orange">
+            <i class="fa-solid fa-calendar-day"></i>
+          </div>
+
+          <div class="card-content">
+            <h3>Today's Analyses</h3>
+
+            <h1 id="todayAnalysis">0</h1>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= RECENT ANALYSES ================= -->
+
+      <section class="history-section">
+        <div class="history-header">
+          <h2>Recent Analyses</h2>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+
+                <th>Type</th>
+
+                <th>Disease</th>
+
+                <th>Probability</th>
+
+                <th>Confidence</th>
+
+                <th>Severity</th>
+              </tr>
+            </thead>
+
+            <tbody id="historyTable">
+              <!-- JavaScript will insert rows here -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="js/dashboard.js"></script>
+  </body>
+</html>

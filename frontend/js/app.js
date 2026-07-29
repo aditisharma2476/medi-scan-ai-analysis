@@ -89,13 +89,13 @@
   let mediaStream = null;
   let deferredPrompt = null;
 
-  // // ── API Base URL (Local)───────────────────────────────────────────────
-  // const API_BASE = window.location.origin.includes("localhost")
-  //   ? "http://localhost:5000"
-  //   : window.location.origin;
+  // ── API Base URL (Local)───────────────────────────────────────────────
+  const API_BASE = window.location.origin.includes("localhost")
+    ? "http://localhost:5000"
+    : window.location.origin;
 
-  // ── API Base URL (Production)───────────────────────────────────────────────
-  const API_BASE = "https://api-medi-scan-ai-analysis.onrender.com";
+  // // ── API Base URL (Production)───────────────────────────────────────────────
+  // const API_BASE = "https://api-medi-scan-ai-analysis.onrender.com";
 
   // ── Navigation ─────────────────────────────────────────────────
   function switchMode(mode) {
@@ -421,3 +421,12 @@
     setTimeout(() => toast.remove(), 4000);
   });
 })();
+
+//  Admin login Button
+const loginBtn = document.getElementById("loginBtn");
+
+if (loginBtn) {
+  loginBtn.addEventListener("click", () => {
+    window.location.href = "dashboard.html";
+  });
+}

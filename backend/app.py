@@ -51,7 +51,35 @@ def compress_image(image_bytes: bytes, max_dim: int = 1024) -> bytes:
     buf = BytesIO()
     img.save(buf, format="JPEG", quality=85)
     return buf.getvalue()
+# history file-save analysis record
+HISTORY_FILE = "analysis_history.json"
 
+def save_analysis(data, analysis_type):
+    try:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, "r") as f:
+                history = json.load(f)
+        else:
+            history = []
+
+        from datetime import datetime
+
+        record = {
+            "date": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
+            "type": analysis_type,
+            "disease": data.get("disease_name"),
+            "probability": data.get("probability"),
+            "confidence": data.get("confidence"),
+            "severity": data.get("severity")
+        }
+
+        history.append(record)
+
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(history, f, indent=4)
+
+    except Exception as e:
+        logger.error(f"Could not save history: {e}")
 
 # ── Skin analysis prompt ──────────────────────────────────────────
 SKIN_PROMPT = """IMPORTANT: Do NOT use <think> tags or any reasoning. Output ONLY the JSON object with no other text.
@@ -119,7 +147,6 @@ def analyze():
 def analyze_nail():
     """Accept a nail image file, send to Groq Vision, return structured JSON."""
     return _analyze_image(NAIL_PROMPT)
-
 
 def _analyze_image(prompt: str):
     """Shared logic for analyzing an image with a given prompt."""
@@ -219,9 +246,17 @@ def _analyze_image(prompt: str):
         for field in required:
             if field not in result:
                 result[field] = None
+        # Determine whether this is a skin or nail analysis
+        if prompt == SKIN_PROMPT:
+           analysis_type = "Skin"
+        else:
+           analysis_type = "Nail"
+
+        # Save analysis history
+        save_analysis(result, analysis_type)
 
         return jsonify(result), 200
-
+        
     except json.JSONDecodeError:
         logger.error(f"Failed to parse Groq response as JSON: {raw}")
         return jsonify({
@@ -231,7 +266,46 @@ def _analyze_image(prompt: str):
     except Exception as e:
         logger.exception("Groq API call failed")
         return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
+        
+# Dashboard Statistics API
+@app.route("/dashboard-stats", methods=["GET"])
+def dashboard_stats():
+    try:
+        if os.path.exists(HISTORY_FILE):
+            with open(HISTORY_FILE, "r") as f:
+                history = json.load(f)
+        else:
+            history = []
 
+        from datetime import datetime
+
+        today = datetime.now().strftime("%d-%m-%Y")
+
+        total_analyses = len(history)
+
+        skin_analyses = sum(
+            1 for item in history if item["type"] == "Skin"
+        )
+
+        nail_analyses = sum(
+            1 for item in history if item["type"] == "Nail"
+        )
+
+        today_analyses = sum(
+            1 for item in history
+            if item["date"].startswith(today)
+        )
+
+        return jsonify({
+            "total_analyses": total_analyses,
+            "skin_analyses": skin_analyses,
+            "nail_analyses": nail_analyses,
+            "today_analyses": today_analyses,
+            "history": history
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ── Entry point ───────────────────────────────────────────────────
 if __name__ == "__main__":

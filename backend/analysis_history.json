@@ -1,0 +1,42 @@
+[
+    {
+        "date": "28-07-2026 15:59:17",
+        "type": "Skin",
+        "disease": "Vitiligo",
+        "probability": 90,
+        "confidence": 90,
+        "severity": "Moderate"
+    },
+    {
+        "date": "28-07-2026 16:04:24",
+        "type": "Nail",
+        "disease": "Onychomycosis (Fungal Nail Infection)",
+        "probability": 85,
+        "confidence": 80,
+        "severity": "Moderate"
+    },
+    {
+        "date": "28-07-2026 21:31:21",
+        "type": "Skin",
+        "disease": "Acne Vulgaris",
+        "probability": 85,
+        "confidence": 80,
+        "severity": "Mild"
+    },
+    {
+        "date": "28-07-2026 21:33:01",
+        "type": "Skin",
+        "disease": "Acne Vulgaris",
+        "probability": 90,
+        "confidence": 85,
+        "severity": "Moderate"
+    },
+    {
+        "date": "28-07-2026 21:36:11",
+        "type": "Skin",
+        "disease": "Dermatitis Herpetiformis",
+        "probability": 85,
+        "confidence": 80,
+        "severity": "Moderate"
+    }
+]

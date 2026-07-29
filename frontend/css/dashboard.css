@@ -1,0 +1,396 @@
+/* Dashoard css */
+
+/* ===========================
+   GOOGLE FONT
+=========================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+/* ===========================
+   BODY
+=========================== */
+
+body {
+  background: #0b1120;
+  color: #ffffff;
+}
+
+/* ===========================
+   CONTAINER
+=========================== */
+
+.container {
+  width: 90%;
+  max-width: 1400px;
+  margin: auto;
+}
+
+/* ===========================
+   HEADER
+=========================== */
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 25px 5%;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ===========================
+   LOGO
+=========================== */
+
+.logo-section {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.logo {
+  width: 70px;
+  height: 70px;
+
+  border-radius: 18px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+
+  font-size: 34px;
+}
+
+.logo i {
+  color: white;
+}
+
+.logo-section h1 {
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.logo-section p {
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+/* ===========================
+   RIGHT HEADER
+=========================== */
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 35px;
+}
+
+.date,
+.admin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #d1d5db;
+
+  font-size: 16px;
+}
+
+.date i,
+.admin i {
+  color: #a855f7;
+  font-size: 18px;
+}
+
+/* ===========================
+   DASHBOARD TITLE
+=========================== */
+
+.dashboard-heading {
+  margin-top: 45px;
+  margin-bottom: 40px;
+}
+
+.dashboard-heading h2 {
+  font-size: 42px;
+  font-weight: 700;
+}
+
+.dashboard-heading p {
+  margin-top: 10px;
+
+  color: #9ca3af;
+
+  font-size: 17px;
+}
+/* ===========================
+   STATISTICS CARDS
+=========================== */
+
+.stats-container {
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 25px;
+}
+
+/* ===========================
+   SINGLE CARD
+=========================== */
+
+.card {
+  background: #131c31;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  border-radius: 22px;
+
+  padding: 25px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 20px;
+
+  transition: 0.3s;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+/* ===========================
+   CARD ICON
+=========================== */
+
+.card-icon {
+  width: 75px;
+  height: 75px;
+
+  border-radius: 18px;
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  font-size: 30px;
+
+  color: white;
+}
+
+/* Colors */
+
+.purple {
+  background: #7c3aed;
+}
+
+.blue {
+  background: #2563eb;
+}
+
+.cyan {
+  background: #0891b2;
+}
+
+.orange {
+  background: #d97706;
+}
+
+/* ===========================
+   CARD TEXT
+=========================== */
+
+.card-content {
+  flex: 1;
+}
+
+.card-content h3 {
+  font-size: 18px;
+
+  color: #b9c1d1;
+
+  font-weight: 500;
+}
+
+.card-content h1 {
+  margin-top: 10px;
+
+  font-size: 42px;
+
+  font-weight: 700;
+}
+/* =====================================
+   RECENT ANALYSES SECTION
+===================================== */
+
+.history-section {
+  margin-top: 40px;
+
+  background: #131c31;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  border-radius: 22px;
+
+  padding: 25px;
+}
+
+/* =====================================
+   SECTION TITLE
+===================================== */
+
+.history-header {
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  margin-bottom: 25px;
+}
+
+.history-header h2 {
+  font-size: 28px;
+
+  font-weight: 600;
+}
+
+/* =====================================
+   TABLE
+===================================== */
+
+.table-container {
+  width: 100%;
+
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+
+  border-collapse: collapse;
+}
+
+thead {
+  background: #1b2640;
+}
+
+thead th {
+  padding: 18px;
+
+  text-align: left;
+
+  color: #c9d1e5;
+
+  font-size: 15px;
+
+  font-weight: 600;
+}
+
+tbody td {
+  padding: 18px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+  color: #e5e7eb;
+
+  font-size: 15px;
+}
+
+tbody tr {
+  transition: 0.3s;
+}
+
+tbody tr:hover {
+  background: #1a233a;
+}
+/* =====================================
+   BADGES
+===================================== */
+
+.badge {
+  display: inline-block;
+
+  padding: 8px 18px;
+
+  border-radius: 30px;
+
+  font-size: 14px;
+
+  font-weight: 600;
+
+  color: white;
+}
+
+/* Skin */
+
+.skin {
+  background: #2563eb;
+}
+
+/* Nail */
+
+.nail {
+  background: #0891b2;
+}
+
+/* Severity */
+
+.mild {
+  background: #15803d;
+}
+
+.moderate {
+  background: #d97706;
+}
+
+.severe {
+  background: #dc2626;
+}
+/* =====================================
+   RESPONSIVE
+===================================== */
+
+@media (max-width: 1100px) {
+  .stats-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .header {
+    flex-direction: column;
+
+    gap: 20px;
+
+    align-items: flex-start;
+  }
+
+  .header-right {
+    width: 100%;
+
+    justify-content: space-between;
+  }
+
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-heading h2 {
+    font-size: 32px;
+  }
+}

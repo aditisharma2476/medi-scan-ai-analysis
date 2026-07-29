@@ -1043,6 +1043,26 @@ body,
   border-bottom-color: var(--accent);
   background: var(--accent-dim);
 }
+/* ==========================
+   NAVIGATION LAYOUT
+========================== */
+
+.nav-tabs {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-left {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
 .theme-toggle {
   flex: 0 0 auto;
@@ -1074,6 +1094,38 @@ html[data-theme="light"] .theme-toggle .icon-sun {
 
 html[data-theme="light"] .theme-toggle .icon-moon {
   display: inline-block;
+}
+
+.admin-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 20px;
+
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+
+  transition: all 0.25s ease;
+}
+
+.admin-btn i {
+  font-size: 16px;
+}
+
+.admin-btn:hover {
+  color: #2dd8c4;
+  background: rgba(45, 216, 196, 0.08);
+}
+
+.admin-btn:focus {
+  outline: none;
 }
 
 /* ── Utility ───────────────────────────────────────────────────── */
