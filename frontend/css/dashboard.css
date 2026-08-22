@@ -417,15 +417,21 @@ body {
 ===================================== */
 
 .table-container {
-  overflow: hidden;
+  width: 100%;
+
+  overflow-x: auto;
+
+  overflow-y: hidden;
+
+  -webkit-overflow-scrolling: touch;
 
   border-radius: 18px;
-
-  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 table {
   width: 100%;
+
+  min-width: 900px;
 
   border-collapse: collapse;
 
