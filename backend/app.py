@@ -4,9 +4,12 @@ Built with Flask + Groq Vision API
 """
 
 import os
+import re
 import json
 import base64
 import logging
+import threading
+from datetime import datetime
 from io import BytesIO
 
 from flask import Flask, request, jsonify
@@ -26,8 +29,11 @@ logger = logging.getLogger(__name__)
 
 # ── Groq client ───────────────────────────────────────────────────
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+# Verify the exact model ID on the GroqCloud models page
+GROQ_MODEL = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+
 if not GROQ_API_KEY:
-    logger.warning("GROQ_API_KEY not set. The /analyze endpoint will fail.")
+    logger.warning("GROQ_API_KEY not set. The /analyze endpoints will fail.")
 
 client = groq.Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
@@ -40,8 +46,8 @@ def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def compress_image(image_bytes: bytes, max_dim: int = 1024) -> bytes:
-    """Resize image so longest side ≤ max_dim and re-encode as JPEG."""
+def compress_image(image_bytes: bytes, max_dim: int = 1536) -> bytes:
+    """Resize image so longest side <= max_dim and re-encode as JPEG."""
     img = Image.open(BytesIO(image_bytes))
     img = img.convert("RGB")
     w, h = img.size
@@ -49,108 +55,199 @@ def compress_image(image_bytes: bytes, max_dim: int = 1024) -> bytes:
         ratio = max_dim / max(w, h)
         img = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
     buf = BytesIO()
-    img.save(buf, format="JPEG", quality=85)
+    img.save(buf, format="JPEG", quality=90)
     return buf.getvalue()
-# history file-save analysis record
+
+
+# ── History (JSON file, guarded by a lock) ────────────────────────
 HISTORY_FILE = "analysis_history.json"
+history_lock = threading.Lock()
 
-def save_analysis(data, analysis_type):
+
+def load_history() -> list:
+    if os.path.exists(HISTORY_FILE):
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    return []
+
+
+def save_analysis(data: dict, analysis_type: str) -> None:
     try:
-        if os.path.exists(HISTORY_FILE):
-            with open(HISTORY_FILE, "r") as f:
-                history = json.load(f)
-        else:
-            history = []
-
-        from datetime import datetime
-
         record = {
             "date": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
             "type": analysis_type,
             "disease": data.get("disease_name"),
             "probability": data.get("probability"),
             "confidence": data.get("confidence"),
-            "severity": data.get("severity")
+            "severity": data.get("severity"),
         }
-
-        history.append(record)
-
-        with open(HISTORY_FILE, "w") as f:
-            json.dump(history, f, indent=4)
-
+        with history_lock:
+            history = load_history()
+            history.append(record)
+            with open(HISTORY_FILE, "w") as f:
+                json.dump(history, f, indent=4)
     except Exception as e:
         logger.error(f"Could not save history: {e}")
 
+
 # ── Skin analysis prompt ──────────────────────────────────────────
-SKIN_PROMPT = """IMPORTANT: Do NOT use <think> tags or any reasoning. Output ONLY the JSON object with no other text.
+SKIN_PROMPT = """Output ONLY a valid JSON object. No markdown, no code fences, no extra text.
 
-You are a board-certified dermatology AI assistant. Analyze the provided skin image and return a **valid JSON object only** — no markdown, no code fences, no extra text, no thinking.
+You are a dermatology assistant. Carefully examine the skin image. Before naming any condition, describe what you actually see (lesion type, color, size, distribution, borders, texture, stage such as papules/vesicles/pustules/crusts). Base your answer only on these visible features, not on which conditions are most common.
 
-The JSON must follow this exact schema:
+Consider a broad differential, including infectious (viral such as chickenpox/varicella, measles, shingles, hand-foot-mouth, herpes simplex; bacterial such as impetigo, cellulitis; fungal such as ringworm, tinea), inflammatory (eczema, psoriasis, dermatitis, urticaria), acne/rosacea, pigmentary (vitiligo, melasma), and neoplastic (actinic keratosis, basal cell carcinoma, melanoma) conditions.
+
+Key distinguishing hints:
+- Chickenpox: widespread itchy lesions at DIFFERENT stages at once (red spots, fluid-filled vesicles "dewdrop on a rose petal", crusted scabs) across trunk, face and limbs.
+- Herpes simplex: localized cluster of vesicles, usually around lips or genitals.
+- Acne: comedones, papules and pustules on face, chest or back, without fluid-filled vesicles or crusting in multiple stages.
+
+Schema (keys in this order):
 {
-  "disease_name": "string — the most likely skin condition (e.g., 'Actinic Keratosis', 'Basal Cell Carcinoma', 'Melanoma', 'Psoriasis', 'Eczema', 'Acne Vulgaris', 'Rosacea', 'Vitiligo', 'Fungal Infection', 'Herpes Simplex', 'Urticaria', 'Normal Skin — No Disease Detected')",
-  "probability": "integer — the likelihood that this specific condition is present (0–100)",
-  "confidence": "integer — your overall confidence in the analysis/assessment (0–100)",
-  "description": "string — a brief 1-2 sentence description of the condition",
-  "symptoms": ["array of strings — common symptoms, 3-5 items"],
-  "causes": ["array of strings — common causes or risk factors, 2-4 items"],
-  "treatments": ["array of strings — common treatments or management strategies, 2-4 items"],
-  "severity": "string — one of: 'Mild', 'Moderate', 'Severe', or 'Unknown'",
-  "contagious": "boolean — whether the condition is contagious",
-  "consult_doctor": "boolean — true if the user should consult a dermatologist"
+  "visual_findings": "string - 2-3 sentences describing only what is visible",
+  "disease_name": "string - most likely condition based on the findings",
+  "alternatives": ["array of 1-3 other possible conditions"],
+  "probability": integer 0-100,
+  "confidence": integer 0-100,
+  "description": "string - 1-2 sentences",
+  "symptoms": ["3-5 items"],
+  "causes": ["2-4 items"],
+  "treatments": ["2-4 items"],
+  "severity": "Mild" | "Moderate" | "Severe" | "Unknown",
+  "contagious": boolean,
+  "consult_doctor": boolean
 }
-IMPORTANT RULES:
-- If the image does not appear to be a skin lesion/rash/condition, set disease_name to 'No Skin Condition Detected' and confidence to 0.
-- Always err on the side of recommending a doctor visit when uncertain.
-- Be honest about confidence — low-quality images should get low confidence scores.
-- Never fabricate a diagnosis — if unsure, set disease_name to 'Uncertain — Consult a Dermatologist' and consult_doctor to true."""
+
+Rules:
+- If the image is not skin, use disease_name 'No Skin Condition Detected' and confidence 0.
+- If the skin looks healthy, use 'Normal Skin — No Disease Detected'.
+- Low-quality images get low confidence. If unsure, use 'Uncertain — Consult a Dermatologist' and consult_doctor true.
+- Do not default to a common diagnosis; commit only if the visible features support it."""
 
 
 # ── Nail analysis prompt ──────────────────────────────────────────
-NAIL_PROMPT = """IMPORTANT: Do NOT use <think> tags or any reasoning. Output ONLY the JSON object with no other text.
+NAIL_PROMPT = """Output ONLY a valid JSON object. No markdown, no code fences, no extra text.
 
-You are a board-certified dermatology AI assistant specializing in nail disorders. Analyze the provided nail image and return a **valid JSON object only** — no markdown, no code fences, no extra text, no thinking.
+You are a dermatology assistant specializing in nails. Carefully examine the nail image. Before naming any condition, describe what you actually see (color, thickness, surface texture, shape/curvature, lines or pits, separation from the nail bed, surrounding skin swelling or redness). Base your answer only on these visible features.
 
-The JSON must follow this exact schema:
+Do NOT default to fungal infection. Onychomycosis requires thickened, discolored (yellow/brown), crumbly nails, often with debris under the nail. Consider the full range: fungal, bacterial paronychia, psoriasis (pitting, oil-drop spots), onycholysis, Beau's lines (transverse grooves), koilonychia (spoon shape), clubbing, leukonychia (white spots/bands), melanonychia (dark streak, consider melanoma), splinter hemorrhages, subungual hematoma, ingrown nail, brittle nails, trauma, or a healthy nail.
+
+Schema (keys in this order):
 {
-  "disease_name": "string — the most likely nail condition (e.g., 'Onychomycosis (Fungal Nail Infection)', 'Ingrown Toenail', 'Nail Psoriasis', 'Paronychia', 'Leukonychia', 'Beau Lines', 'Onycholysis', 'Clubbing', 'Koilonychia (Spoon Nails)', 'Melanonychia', 'Subungual Hematoma', 'Yellow Nail Syndrome', 'Normal Nail — No Disease Detected')",
-  "probability": "integer — the likelihood that this specific condition is present (0–100)",
-  "confidence": "integer — your overall confidence in the analysis/assessment (0–100)",
-  "description": "string — a brief 1-2 sentence description of the condition",
-  "symptoms": ["array of strings — common symptoms, 3-5 items"],
-  "causes": ["array of strings — common causes or risk factors, 2-4 items"],
-  "treatments": ["array of strings — common treatments or management strategies, 2-4 items"],
-  "severity": "string — one of: 'Mild', 'Moderate', 'Severe', or 'Unknown'",
-  "contagious": "boolean — whether the condition is contagious",
-  "consult_doctor": "boolean — true if the user should consult a dermatologist"
+  "visual_findings": "string - 2-3 sentences describing only what is visible",
+  "disease_name": "string - most likely condition based on the findings",
+  "alternatives": ["array of 1-3 other possible conditions"],
+  "probability": integer 0-100,
+  "confidence": integer 0-100,
+  "description": "string - 1-2 sentences",
+  "symptoms": ["3-5 items"],
+  "causes": ["2-4 items"],
+  "treatments": ["2-4 items"],
+  "severity": "Mild" | "Moderate" | "Severe" | "Unknown",
+  "contagious": boolean,
+  "consult_doctor": boolean
 }
-IMPORTANT RULES:
-- If the image does not appear to be a nail or nail condition, set disease_name to 'No Nail Condition Detected' and confidence to 0.
-- Always err on the side of recommending a doctor visit when uncertain.
-- Be honest about confidence — low-quality images should get low confidence scores.
-- Never fabricate a diagnosis — if unsure, set disease_name to 'Uncertain — Consult a Dermatologist' and consult_doctor to true."""
+
+Rules:
+- If the image is not a nail, use disease_name 'No Nail Condition Detected' and confidence 0.
+- If the nail looks healthy, use 'Normal Nail — No Disease Detected'.
+- Low-quality images get low confidence. If unsure, use 'Uncertain — Consult a Dermatologist' and consult_doctor true.
+- Do not default to a common diagnosis; commit only if the visible features support it."""
 
 
+REQUIRED_FIELDS = [
+    "visual_findings", "disease_name", "alternatives", "probability",
+    "confidence", "description", "symptoms", "causes", "treatments",
+    "severity", "contagious", "consult_doctor",
+]
+
+
+# ── JSON extraction helpers ───────────────────────────────────────
+def extract_json(raw: str):
+    """Extract a JSON object from a model response, tolerating <think> blocks
+    and truncated output. Returns a dict or None."""
+    # Remove reasoning blocks so braces inside them don't confuse parsing
+    cleaned = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL)
+    # Handle an unclosed <think> (truncated output)
+    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL) if "<think>" in cleaned else cleaned
+    # Remove code fences if the model added them anyway
+    cleaned = re.sub(r"```(?:json)?", "", cleaned).strip()
+
+    # If cleaning removed everything, fall back to the raw text
+    if "{" not in cleaned:
+        cleaned = raw
+
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        return None
+
+    json_str = cleaned[start:end + 1]
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError:
+        pass
+
+    # Attempt to repair truncated JSON by trimming and closing brackets
+    for trim_end in range(len(json_str), 0, -1):
+        candidate = json_str[:trim_end]
+        open_braces = candidate.count("{") - candidate.count("}")
+        open_brackets = candidate.count("[") - candidate.count("]")
+        candidate += "]" * max(open_brackets, 0)
+        candidate += "}" * max(open_braces, 0)
+        candidate = re.sub(r",\s*([}\]])", r"\1", candidate)
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def normalize_result(result: dict) -> dict:
+    """Fill missing fields and coerce types."""
+    for field in REQUIRED_FIELDS:
+        if field not in result:
+            result[field] = None
+
+    for key in ("probability", "confidence"):
+        try:
+            result[key] = int(result[key])
+        except (TypeError, ValueError):
+            result[key] = None
+
+    for key in ("alternatives", "symptoms", "causes", "treatments"):
+        if not isinstance(result[key], list):
+            result[key] = [] if result[key] is None else [str(result[key])]
+
+    return result
+
+
+# ── Routes ────────────────────────────────────────────────────────
 @app.route("/health", methods=["GET"])
 def health():
     """Simple health-check endpoint."""
-    return jsonify({"status": "ok", "message": "Skin & Nail Disease Detection API is running"})
+    return jsonify({
+        "status": "ok",
+        "message": "Skin & Nail Disease Detection API is running",
+        "model": GROQ_MODEL,
+    })
 
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
     """Accept a skin image file, send to Groq Vision, return structured JSON."""
-    return _analyze_image(SKIN_PROMPT)
+    return _analyze_image(SKIN_PROMPT, "Skin")
 
 
 @app.route("/analyze-nail", methods=["POST"])
 def analyze_nail():
     """Accept a nail image file, send to Groq Vision, return structured JSON."""
-    return _analyze_image(NAIL_PROMPT)
+    return _analyze_image(NAIL_PROMPT, "Nail")
 
-def _analyze_image(prompt: str):
+
+def _analyze_image(prompt: str, analysis_type: str):
     """Shared logic for analyzing an image with a given prompt."""
-    # ── Validate request ───────────────────────────────────────────
+    # ── Validate request ──────────────────────────────────────────
     if "image" not in request.files:
         return jsonify({"error": "No image file provided. Use field name 'image'."}), 400
 
@@ -176,136 +273,66 @@ def _analyze_image(prompt: str):
         return jsonify({"error": f"Image processing failed: {str(e)}"}), 400
 
     # ── Call Groq Vision ──────────────────────────────────────────
+    raw = ""
     try:
         completion = client.chat.completions.create(
-            model="qwen/qwen3.6-27b",
+            model=GROQ_MODEL,
             messages=[
                 {
                     "role": "user",
                     "content": [
                         {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": data_url, "detail": "high"},
-                        },
+                        {"type": "image_url", "image_url": {"url": data_url}},
                     ],
                 }
             ],
-            temperature=0.1,
+            temperature=0.2,
             max_tokens=4096,
         )
 
-        raw = completion.choices[0].message.content.strip()
-        logger.info(f"Groq raw response (first 200 chars): {raw[:200]}")
+        raw = (completion.choices[0].message.content or "").strip()
+        logger.info(f"Groq raw response (first 300 chars): {raw[:300]}")
 
-        # ── Parse JSON from response ──────────────────────────────
-        import re
-
-        # Strategy: The Qwen model outputs <think> reasoning blocks.
-        # The JSON may be embedded inside or after the think block.
-        # We directly find the outermost JSON object in the raw response.
-
-        # Find the first '{' and last '}' in the entire response
-        json_start = raw.find('{')
-        json_end = raw.rfind('}')
-
-        result = None
-        if json_start != -1 and json_end != -1 and json_end > json_start:
-            json_str = raw[json_start:json_end + 1]
-            # Try to parse the JSON directly first
-            try:
-                result = json.loads(json_str)
-            except json.JSONDecodeError:
-                # JSON might be truncated - try to find the last valid JSON
-                # by progressively trimming from the end
-                for trim_end in range(len(json_str), json_start, -1):
-                    candidate = json_str[:trim_end]
-                    # Try to close any open brackets/braces
-                    open_braces = candidate.count('{') - candidate.count('}')
-                    open_brackets = candidate.count('[') - candidate.count(']')
-                    if open_braces > 0:
-                        candidate += '}' * open_braces
-                    if open_brackets > 0:
-                        candidate += ']' * open_brackets
-                    # Remove trailing comma before closing
-                    candidate = re.sub(r',\s*([}\]])', r'\1', candidate)
-                    try:
-                        result = json.loads(candidate)
-                        break
-                    except json.JSONDecodeError:
-                        continue
-
+        result = extract_json(raw)
         if result is None:
             raise json.JSONDecodeError("Could not extract valid JSON from response", raw, 0)
 
-        # Validate required fields
-        required = [
-            "disease_name", "probability", "confidence", "description", "symptoms",
-            "causes", "treatments", "severity", "contagious", "consult_doctor"
-        ]
-        for field in required:
-            if field not in result:
-                result[field] = None
-        # Determine whether this is a skin or nail analysis
-        if prompt == SKIN_PROMPT:
-           analysis_type = "Skin"
-        else:
-           analysis_type = "Nail"
-
-        # Save analysis history
+        result = normalize_result(result)
         save_analysis(result, analysis_type)
 
         return jsonify(result), 200
-        
+
     except json.JSONDecodeError:
         logger.error(f"Failed to parse Groq response as JSON: {raw}")
         return jsonify({
             "error": "Failed to parse AI response. Please try again.",
-            "raw_response": raw
+            "raw_response": raw,
         }), 500
     except Exception as e:
         logger.exception("Groq API call failed")
         return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
-        
-# Dashboard Statistics API
+
+
+# ── Dashboard statistics ──────────────────────────────────────────
 @app.route("/dashboard-stats", methods=["GET"])
 def dashboard_stats():
     try:
-        if os.path.exists(HISTORY_FILE):
-            with open(HISTORY_FILE, "r") as f:
-                history = json.load(f)
-        else:
-            history = []
-
-        from datetime import datetime
+        with history_lock:
+            history = load_history()
 
         today = datetime.now().strftime("%d-%m-%Y")
 
-        total_analyses = len(history)
-
-        skin_analyses = sum(
-            1 for item in history if item["type"] == "Skin"
-        )
-
-        nail_analyses = sum(
-            1 for item in history if item["type"] == "Nail"
-        )
-
-        today_analyses = sum(
-            1 for item in history
-            if item["date"].startswith(today)
-        )
-
         return jsonify({
-            "total_analyses": total_analyses,
-            "skin_analyses": skin_analyses,
-            "nail_analyses": nail_analyses,
-            "today_analyses": today_analyses,
-            "history": history
+            "total_analyses": len(history),
+            "skin_analyses": sum(1 for i in history if i.get("type") == "Skin"),
+            "nail_analyses": sum(1 for i in history if i.get("type") == "Nail"),
+            "today_analyses": sum(1 for i in history if i.get("date", "").startswith(today)),
+            "history": history,
         }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 # ── Entry point ───────────────────────────────────────────────────
 if __name__ == "__main__":
